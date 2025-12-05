@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ODRL Policy Editor</title>
+    <style>
+        /* Include all the CSS from the original template here */
+    </style>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <main id="main">
+        <section id="faq" class="faq">
+            <div class="container" data-aos="fade-up">
+                <header class="section-header">
+                    <p>ODRL Policy Editor</p>
+                </header>
+
+                <div class="row">
+                    <div class="button-container">
+                        <input type="file" id="fileInput">
+                        <button id="uploadButton" class="common-button">Upload Rules</button>
+                        <button id="saveButton" class="common-button">Save Rules</button>
+                        <hr>
+                        <button id="newRuleButton" class="common-button">New Rule</button>
+                        <button id="clearButton" class="common-button">Clear</button>
+{#                        <textarea id="jsonTextarea" rows="1" cols="5"></textarea>#}
+                    </div>
+
+                    <div class="col-lg-12">
+                        <div class="form-card" style="display: none">
+
+                            <div>
+                                <label for="ruleDropdown">Rule:</label>
+                                <select id="ruleDropdown" class="dropdowns" onchange="actionChosen()"></select>
+                            </div>
+                            <div id="refinementActorContainer">
+                                <div class="flex">
+                                    <label for="ActorDropdown">Actor:</label>
+                                    <select id="ActorDropdown" class="dropdowns"></select>
+                                    <button id="addRefinementActorRow" >Refine</button>
+                                </div>
+
+                                <div class="refinementActorRow">
+                                    <label for="refinementActorDropdown">Refinement:</label>
+                                    <select id="refinementActorDropdown" class="refinementActorDropdown"></select>
+                                    <label for="operatorRefinementActorDropdown"></label>
+                                    <select id = "operatorRefinementActorDropdown" class="operatorRefinementActorDropdown"></select>
+                                    <label for="refinementActorValue"></label>
+                                    <input id="refinementActorValue" type="text" class="refinementActorValue" placeholder="Value e.g., '2020-12-12', 'http://example.org/'">
+                                    <button class="removeRefinementActorRow">X</button>
+                                </div>
+                            </div>
+
+                            <div id="refinementActionContainer">
+                                <div class="flex">
+                                    <label for="ActionDropdown">Action:</label>
+                                    <select id="ActionDropdown" class="dropdowns" onchange="actionChosen()"></select>
+                                    <button id="addRefinementActionRow" >Refine</button>
+                                </div>
+
+                                <div class="refinementActionRow">
+                                    <label for="refinementActionDropdown">Refinement:</label>
+                                    <select id="refinementActionDropdown" class="refinementActionDropdown"></select>
+                                    <label for="operatorRefinementActionDropdown"></label>
+                                    <select id = "operatorRefinementActionDropdown" class="operatorRefinementActionDropdown"></select>
+                                    <label for="refinementActionValue"></label>
+                                    <input id="refinementActionValue" type="text" class="refinementActionValue" placeholder="Value e.g., '2020-12-12', 'http://example.org/'">
+                                    <button class="removeRefinementActionRow">X</button>
+                                </div>
+
+                            </div>
+
+                            <div>
+                                <label for="queryTextbox" id="queryTextboxLabel">Enter a Query:</label><textarea id="queryTextbox" class="queryTextbox" placeholder="Write your query here."></textarea>
+                            </div>
+                            {#                    <div>#}
+                            {#                        <label for="purposeDropdown">Purpose:</label>#}
+                            {#                        <select id="purposeDropdown" class="dropdowns"></select>#}
+                            {#                    </div>#}
+                            <div id="refinementPurposeContainer">
+                                <div class="flex">
+                                    <label for="PurposeDropdown">Purpose:</label>
+                                    <select id="PurposeDropdown" class="dropdowns"></select>
+                                    <button id="addRefinementPurposeRow" >Refine</button>
+                                </div>
+
+                                <div class="refinementPurposeRow">
+                                    <label for="refinementPurposeDropdown">Refinement:</label>
+                                    <select id="refinementPurposeDropdown" class="refinementPurposeDropdown"></select>
+                                    <label for="operatorRefinementPurposeDropdown"></label>
+                                    <select id = "operatorRefinementPurposeDropdown" class="operatorRefinementPurposeDropdown"></select>
+                                    <label for="refinementPurposeValue"></label>
+                                    <input id="refinementPurposeValue" type="text" class="refinementPurposeValue" placeholder="Value e.g., '2020-12-12', 'http://example.org/'">
+                                    <button class="removeRefinementPurposeRow">X</button>
+                                </div>
+
+                            </div>
+
+                            <div id="refinementTargetContainer">
+                                <div class="flex">
+                                    <label for="TargetDropdown">Target:</label>
+                                    <select id="TargetDropdown" class="dropdowns"></select>
+                                    <button id="addRefinementTargetRow" >Refine</button>
+                                </div>
+
+                                <div class="refinementTargetRow">
+                                    <label for="refinementTargetDropdown">Refinement:</label>
+                                    <select id="refinementTargetDropdown" class="refinementTargetDropdown"></select>
+                                    <label for="operatorRefinementTargetDropdown"></label>
+                                    <select id = "operatorRefinementTargetDropdown" class="operatorRefinementTargetDropdown"></select>
+                                    <label for="refinementTargetValue"></label>
+                                    <input id="refinementTargetValue" type="text" class="refinementTargetValue" placeholder="Value e.g., '2020-12-12', 'http://example.org/'">
+                                    <button class="removeRefinementTargetRow">X</button>
+                                </div>
+                            </div>
+
+                            <div id="constraintsContainer">
+                                <button id="addConstraintRow" >Add Constraint</button>
+                                <div class="constraintRow">
+                                    <label for="constraintDropdown">Constraint:</label>
+                                    <select id = "constraintDropdown" class="constraintDropdown"></select>
+                                    <label for="operatorDropdown"></label>
+                                    <select id = "operatorDropdown" class="operatorDropdown"></select>
+                                    <label for="constraintValue"></label>
+                                    <input id="constraintValue" type="text" class="constraintValue" placeholder="Value e.g., '2020-12-12', 'http://example.org/'">
+                                    <button class="removeRow">X</button>
+                                </div>
+
+                            </div>
+
+                            <div class="form-actions">
+                                <button class="remove-form-button">Remove Rule</button>
+                            </div>
+                        </div>
+                    </div>
+{#                    <div id="savedObjects">#}
+{#                        <h3>Saved Objects:</h3>#}
+{#                        <textarea id="savedOdrl" rows="30" cols="50"></textarea>#}
+{#                        <ul id="savedList"></ul>#}
+{#                    </div>#}
+                </div>
+            </div>
+        </section>
+    </main>
+    <script>
+        var rules = {{ rules | tojson | safe }};
+        var actions = {{ actions | tojson | safe }};
+        var targets = {{ targets | tojson | safe }};
+        var purposes = {{ purposes | tojson | safe }};
+        var constraints = {{ constraints | tojson | safe }};
+        var operators = {{ operators | tojson | safe }};
+        var actors = {{ actors | tojson | safe }};
+    </script>
+    <script src="{{ url_for('static', path='/js/odrl_editor.js') }}"></script>
+
+    <script>
+        // Include all the JavaScript from the original template here
+        // You'll need to adjust the AJAX calls to work with FastAPI's routing
+        // For example, change:
+        // url: 'organization/convert_to_odrl',
+        // to:
+        // url: '/convert_to_odrl',
+
+        // Also, you'll need to adjust how CSRF tokens are handled, as FastAPI doesn't use them by default
+        // Remove lines like:
+        // headers: {
+        //     'X-CSRFToken': '{{ csrf_token }}'
+        // },
+
+        // You may need to adjust how you're passing data to the template
+        // Instead of using Django's template variables like {{ rules|safe }},
+        // you'll need to pass this data from your FastAPI route and use Jinja2 syntax:
+        // {{ rules | tojson | safe }}
+    </script>
+</body>
+</html>

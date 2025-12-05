@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  fastapi:
+    build: .
+    ports:
+      - "8443:443"  # Mapping the HTTPS port
+    environment:
+      MONGO_USER: ${MONGO_USER}
+      MONGO_PASSWORD: ${MONGO_PASSWORD}
+      MONGO_HOST: ${MONGO_HOST}
+      MONGO_PORT: ${MONGO_PORT}
+    depends_on:
+      - mongo-policy-enforcement
+    volumes:
+      - .:/app  # Bind mount for local changes
+      - ./certs:/app/certs  # Mount SSL certificates
+    command: >
+      uvicorn api:app 
+      --host 0.0.0.0 
+      --port 443 
+      --ssl-keyfile /app/certs/key.pem 
+      --ssl-certfile /app/certs/cert.pem 
+      --reload
+  mongo-policy-enforcement:
+    image: mongo:latest
+    container_name: mongo-policy-enforcement
+    restart: always
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
+    volumes:
+      - mongodb-data:/data/db
+
+volumes:
+  mongodb-data:

@@ -1,0 +1,609 @@
+openapi: 3.0.1
+info:
+  title: Policy Checking API
+  description: ''
+  version: 1.0.0
+tags: []
+paths:
+  /get_data_provider_policy/{dataset_id}:
+    get:
+      summary: Get Data Provider Policy
+      deprecated: false
+      description: >-
+        Retrieves the ODRL policy for a specific dataset ID from the policies
+        database.
+
+
+        Parameters:
+
+        - dataset_id: Path parameter specifying the ID of the dataset for which
+        the policy needs to be retrieved.
+
+
+        Returns:
+
+        - Success (200 OK): Returns a JSON object containing the ODRL policy for
+        the specified dataset_id: {"odrl_policy": policies[dataset_id]}
+
+
+        - Failure (404 Not Found): If the specified dataset_id is not found in
+        the policies database.
+          Returns an HTTP 404 error with details: "Policy not found"
+
+        Example Usage:
+
+        ```
+
+        GET /get_policy/example_dataset HTTP/1.1
+
+        ```
+
+        Replace example_dataset with the actual dataset ID to retrieve its
+        policy.
+      operationId: get_data_provider_policy_get_data_provider_policy__dataset_id__get
+      tags: []
+      parameters:
+        - name: dataset_id
+          in: path
+          description: ''
+          required: true
+          example: ''
+          schema:
+            type: string
+            title: Dataset Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: &ref_0
+                $ref: '#/components/schemas/DataPolicy'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema: &ref_1
+                $ref: '#/components/schemas/HTTPValidationError'
+      security: []
+  /set_data_provider_policy/{dataset_id}:
+    post:
+      summary: Set Data Provider Policy
+      deprecated: false
+      description: >-
+        Sets or updates the ODRL policy for a specific dataset ID in the
+        policies database.
+
+
+        Parameters:
+
+        - dataset_id: Path parameter specifying the ID of the dataset for which
+        the policy is to be set.
+
+        - policy: Request body containing the new ODRL policy to be set for the
+        dataset.
+
+
+        Returns:
+
+        - Success (201 Created): Returns a JSON object with a success message
+        indicating the policy was set successfully: {"message": "Policy set
+        successfully"}
+
+
+        Example Usage:
+
+        ```
+
+        POST /set_policy/example_dataset HTTP/1.1
+
+        Content-Type: application/json
+
+
+        {
+          "odrl_policy": {...}
+        }
+
+        ```
+
+        Replace example_dataset with the actual dataset ID and provide the
+        appropriate odrl_policy details in the request body.
+      operationId: set_data_provider_policy_set_data_provider_policy__dataset_id__post
+      tags: []
+      parameters:
+        - name: dataset_id
+          in: path
+          description: ''
+          required: true
+          example: ''
+          schema:
+            type: string
+            title: Dataset Id
+      requestBody:
+        content:
+          application/json:
+            schema: *ref_0
+            example: ''
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: string
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema: *ref_1
+      security: []
+  /remove_data_provider_policy/{dataset_id}:
+    delete:
+      summary: Remove Data Provider Policy
+      deprecated: false
+      description: >-
+        Removes the ODRL policy for a specific dataset ID from the policies
+        database.
+
+
+        Parameters:
+
+        - dataset_id: Path parameter specifying the ID of the dataset for which
+        the policy is to be removed.
+
+
+        Returns:
+
+        - Success (200 OK): Returns a JSON object with a success message
+        indicating the policy was removed successfully: {"message": "Policy
+        removed successfully"}
+
+
+        - Failure (404 Not Found): If the specified dataset_id is not found in
+        the policies database.
+          Returns an HTTP 404 error with details: "Policy not found"
+
+        Example Usage:
+
+        ```
+
+        DELETE /remove_policy/example_dataset HTTP/1.1
+
+        ```
+
+        Replace example_dataset with the actual dataset ID to remove its policy.
+      operationId: >-
+        remove_data_provider_policy_remove_data_provider_policy__dataset_id__delete
+      tags: []
+      parameters:
+        - name: dataset_id
+          in: path
+          description: ''
+          required: true
+          example: ''
+          schema:
+            type: string
+            title: Dataset Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: string
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema: *ref_1
+      security: []
+  /get_data_consumer_policy/{script_id}:
+    get:
+      summary: Get Data Consumer Policy
+      deprecated: false
+      description: >-
+        Retrieves the ODRL policy for a specific script ID from the policies
+        database.
+
+
+        Parameters:
+
+        - script_id: Path parameter specifying the ID of the script for which
+        the policy needs to be retrieved.
+
+
+        Returns:
+
+        - Success (200 OK): Returns a JSON object containing the ODRL policy for
+        the specified script_id: {"odrl_policy": policies[script_id]}
+
+
+        - Failure (404 Not Found): If the specified script_id is not found in
+        the policies database.
+          Returns an HTTP 404 error with details: "Policy not found"
+
+        Example Usage:
+
+        ```
+
+        GET /get_policy/example_script HTTP/1.1
+
+        ```
+
+        Replace example_script with the actual script ID to retrieve its policy.
+      operationId: get_data_consumer_policy_get_data_consumer_policy__script_id__get
+      tags: []
+      parameters:
+        - name: script_id
+          in: path
+          description: ''
+          required: true
+          example: ''
+          schema:
+            type: string
+            title: Script Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: &ref_2
+                $ref: '#/components/schemas/ScriptPolicy'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema: *ref_1
+      security: []
+  /set_data_consumer_policy/{script_id}:
+    post:
+      summary: Set Data Consumer Policy
+      deprecated: false
+      description: >-
+        Sets or updates the ODRL policy for a specific script ID in the policies
+        database.
+
+
+        Parameters:
+
+        - script_id: Path parameter specifying the ID of the script for which
+        the policy is to be set.
+
+        - policy: Request body containing the new ODRL policy to be set for the
+        script.
+
+
+        Returns:
+
+        - Success (201 Created): Returns a JSON object with a success message
+        indicating the policy was set successfully: {"message": "Policy set
+        successfully"}
+
+
+        Example Usage:
+
+        ```
+
+        POST /set_policy/example_script HTTP/1.1
+
+        Content-Type: application/json
+
+
+        {
+          "odrl_policy": {...}
+        }
+
+        ```
+
+        Replace example_script with the actual script ID and provide the
+        appropriate odrl_policy details in the request body.
+      operationId: set_data_consumer_policy_set_data_consumer_policy__script_id__post
+      tags: []
+      parameters:
+        - name: script_id
+          in: path
+          description: ''
+          required: true
+          example: ''
+          schema:
+            type: string
+            title: Script Id
+      requestBody:
+        content:
+          application/json:
+            schema: *ref_2
+            example: ''
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: string
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema: *ref_1
+      security: []
+  /remove_data_consumer_policy/{script_id}:
+    delete:
+      summary: Remove Data Consumer Policy
+      deprecated: false
+      description: >-
+        Removes the ODRL policy for a specific script ID from the policies
+        database.
+
+
+        Parameters:
+
+        - script_id: Path parameter specifying the ID of the script for which
+        the policy is to be removed.
+
+
+        Returns:
+
+        - Success (200 OK): Returns a JSON object with a success message
+        indicating the policy was removed successfully: {"message": "Policy
+        removed successfully"}
+
+
+        - Failure (404 Not Found): If the specified script_id is not found in
+        the policies database.
+          Returns an HTTP 404 error with details: "Policy not found"
+
+        Example Usage:
+
+        ```
+
+        DELETE /remove_policy/example_script HTTP/1.1
+
+        ```
+
+        Replace example_script with the actual script ID to remove its policy.
+      operationId: >-
+        remove_data_consumer_policy_remove_data_consumer_policy__script_id__delete
+      tags: []
+      parameters:
+        - name: script_id
+          in: path
+          description: ''
+          required: true
+          example: ''
+          schema:
+            type: string
+            title: Script Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: string
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema: *ref_1
+      security: []
+  /compare_policies:
+    post:
+      summary: Compare Policies
+      deprecated: false
+      description: >-
+        Validates a policy of a script against existing policies for a dataset
+        using ODRL (Open Digital Rights Language).
+
+
+        Parameters:
+
+        - request_policy: Request body containing the existing dataset_id and
+        script_id
+
+        to validate a script data access request policy against a data provider
+        access policy.
+
+
+        Returns:
+
+        - Success (200 OK): Access granted if no conflicts are found between the
+        request policy and existing dataset policies.
+          Returns a JSON object with a success message: {"message": "Access granted"}
+
+        - Failure (404 Not Found): If the specified dataset_id is not found in
+        the policies database.
+          Returns an HTTP 404 error with details: "Policy not found"
+
+        - Conflict (200 OK with ConflictReport): If the request policy conflicts
+        with an existing policy for the dataset.
+          Returns a JSON object with conflict details: {"conflict_details": "Request policy conflicts with existing policy"}
+      operationId: compare_policies_compare_policies_post
+      tags: []
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestPolicy'
+            example: ''
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConflictReport'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema: *ref_1
+      security: []
+  /:
+    get:
+      summary: Home
+      deprecated: false
+      description: ''
+      operationId: home__get
+      tags: []
+      parameters: []
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: string
+      security: []
+  /convert_to_odrl:
+    post:
+      summary: Convert To Odrl
+      deprecated: false
+      description: ''
+      operationId: convert_to_odrl_convert_to_odrl_post
+      tags: []
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              items:
+                $ref: '#/components/schemas/ODRLData'
+              type: array
+              title: Data
+            example: ''
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: string
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema: *ref_1
+      security: []
+components:
+  schemas:
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+              - type: string
+              - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+      type: object
+      required:
+        - loc
+        - msg
+        - type
+      title: ValidationError
+    ScriptPolicy:
+      properties:
+        odrl_policy:
+          type: object
+          title: Odrl Policy
+          examples:
+            - '@context': http://www.w3.org/ns/odrl.jsonld
+              '@type': http://www.w3.org/ns/odrl/2/Policy
+              permission:
+                - action: http://www.w3.org/ns/odrl/2/appendTo
+                  assignee: https://w3id.org/dpv/owl#Citizen
+                  constraint:
+                    - leftOperand: purpose
+                      operator: http://www.w3.org/ns/odrl/2/eq
+                      rightOperand: https://w3id.org/dpv/owl#Personalisation
+                  target:
+                    refinement:
+                      - leftOperand: http://example.org/datasets/title
+                        operator: http://www.w3.org/ns/odrl/2/eq
+                        rightOperand: '6'
+                    source: http://example.org/datasets/climateChangeData
+              uid: http://example.org/policy-79f7e6ba-daff-4919-940f-a1ad1344a97b
+          properties: {}
+      type: object
+      required:
+        - odrl_policy
+      title: ScriptPolicy
+    RequestPolicy:
+      properties:
+        dataset_id:
+          type: string
+          title: Dataset Id
+          examples:
+            - example_dataset_id
+        script_id:
+          type: string
+          title: Script Id
+          examples:
+            - example_script_id
+      type: object
+      required:
+        - dataset_id
+        - script_id
+      title: RequestPolicy
+    ODRLData:
+      properties: {}
+      type: object
+      title: ODRLData
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    DataPolicy:
+      properties:
+        odrl_policy:
+          type: object
+          title: Odrl Policy
+          examples:
+            - '@context': http://www.w3.org/ns/odrl.jsonld
+              '@type': http://www.w3.org/ns/odrl/2/Policy
+              prohibition:
+                - action: http://www.w3.org/ns/odrl/2/appendTo
+                  assignee: https://w3id.org/dpv/owl#Citizen
+                  constraint:
+                    - leftOperand: purpose
+                      operator: http://www.w3.org/ns/odrl/2/eq
+                      rightOperand: https://w3id.org/dpv/owl#Personalisation
+                  target:
+                    refinement:
+                      - leftOperand: http://example.org/datasets/title
+                        operator: http://www.w3.org/ns/odrl/2/eq
+                        rightOperand: '6'
+                    source: http://example.org/datasets/climateChangeData
+              uid: http://example.org/policy-79f7e6ba-daff-4919-940f-a1ad1344a97a
+          properties: {}
+      type: object
+      required:
+        - odrl_policy
+      title: DataPolicy
+    ConflictReport:
+      properties:
+        conflict_details:
+          anyOf:
+            - type: object
+              properties: {}
+            - type: string
+          title: Conflict Details
+          examples:
+            - No conflicts
+      type: object
+      required:
+        - conflict_details
+      title: ConflictReport
+  securitySchemes: {}
+servers: []

@@ -1,0 +1,904 @@
+import json
+import os
+from typing import List, Dict, Any, Optional
+from typing import Union
+import uvicorn
+import rdflib
+from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException, Body
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from motor.motor_asyncio import AsyncIOMotorClient
+from pydantic import BaseModel, Field
+from rdflib import Graph
+from rdflib.namespace import Namespace
+from rdflib.plugins.sparql import prepareQuery
+from starlette.requests import Request
+from Parsers import ODRLParser
+from Translators import LogicTranslator
+from fastapi.responses import JSONResponse
+import data_helper
+from examples import example_permission_policy, example_prohibition_policy, example_data
+from ODRL2SHACL import compare_policies
+from ontology import get_rules_from_odrl, get_actors_from_dpv, get_actions_from_odrl, get_dataset_titles_and_uris, \
+    get_constraints_types_from_odrl, get_purposes_from_dpv, get_operators_from_odrl
+
+
+class Constraint(BaseModel):
+    type: Optional[str] = None
+    operator: Optional[str] = None
+    value: Optional[str] = None
+
+class Refinement(BaseModel):
+    type: Optional[str] = None
+    operator: Optional[str] = None
+    value: Optional[str] = None
+
+class ODRLData(BaseModel):
+    rule: Optional[str] = None
+    actor: Optional[str] = None
+    action: Optional[str] = None
+    target: Optional[str] = None
+    purpose: Optional[str] = None
+    query: str = ""
+    constraints: List[Constraint] = []
+    actorrefinements: List[Refinement] = []
+    actionrefinements: List[Refinement] = []
+    purposerefinements: List[Refinement] = []
+    targetrefinements: List[Refinement] = []
+
+from typing import List, Dict, Any, Optional, Union, Set
+from pydantic import BaseModel, Field
+from fastapi import HTTPException, Body
+from rdflib import Graph
+import uuid
+
+# New Models for the detect_conflict endpoint
+class ConflictingRule(BaseModel):
+    conflicting_rules_in_p_one: Set[str] = Field(...)
+    conflicting_rules_in_p_two: Set[str] = Field(...)
+    conflict_explanation: Union[str, Dict[str, Any]]
+
+class ConflictResponse(BaseModel):
+    conflict_status: str
+    p_one_id: str
+    p_two_id: str
+    p_one_role: Optional[str] = None
+    p_two_role: Optional[str] = None
+    conflict_set: Optional[List[ConflictingRule]] = None
+
+class DetectConflictRequest(BaseModel):
+    p_one: Dict[str, Any]
+    p_two: Dict[str, Any]
+    p_one_role: Optional[str] = None
+    p_two_role: Optional[str] = None
+
+    class Config:
+        schema_extra = {
+            "example": {
+              "p_one": {
+                "@context": {
+                  "dash": "http://datashapes.org/dash#",
+                  "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+                  "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
+                  "schema": "http://schema.org/",
+                  "sh": "http://www.w3.org/ns/shacl#",
+                  "xsd": "http://www.w3.org/2001/XMLSchema#",
+                  "ex": "http://example.ex/",
+                  "odrl": "http://www.w3.org/ns/odrl/2/"
+                },
+                "@id": "https://eu-upcast.github.io/shapes/mint#2policy17446325067569091",
+                "@type": "odrl:Policy",
+                "odrl:permission": [
+                  {
+                    "odrl:target": {
+                      "@type": "odrl:AssetCollection",
+                      "rdf:value": {
+                        "@id": "http://example.org/datasets/covid19Stats"
+                      }
+                    },
+                    "odrl:action": {
+                      "rdf:value": {
+                        "@id": "odrl:create"
+                      }
+                    },
+                    "odrl:assignee": {
+                      "@type": "odrl:PartyCollection",
+                      "rdf:value": {
+                        "@id": "https://w3id.org/dpv/owl#AcademicScientificOrganisation"
+                      }
+                    }
+                  },
+                  {
+                    "odrl:target": {
+                      "@type": "odrl:AssetCollection",
+                      "rdf:value": {
+                        "@id": "http://example.org/datasets/covid19Stats"
+                      }
+                    },
+                    "odrl:action": {
+                      "rdf:value": {
+                        "@id": "odrl:modify"
+                      }
+                    },
+                    "odrl:assignee": {
+                      "@type": "odrl:PartyCollection",
+                      "rdf:value": {
+                        "@id": "https://w3id.org/dpv/owl#AcademicScientificOrganisation"
+                      }
+                    }
+                  }
+                ]
+              },
+              "p_two": {
+                "@context": {
+                  "dash": "http://datashapes.org/dash#",
+                  "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+                  "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
+                  "schema": "http://schema.org/",
+                  "sh": "http://www.w3.org/ns/shacl#",
+                  "xsd": "http://www.w3.org/2001/XMLSchema#",
+                  "ex": "http://example.ex/",
+                  "odrl": "http://www.w3.org/ns/odrl/2/"
+                },
+                "@id": "https://eu-upcast.github.io/shapes/mint#4policy17446325067569091",
+                "@type": "odrl:Policy",
+                "odrl:permission": {
+                  "odrl:target": {
+                    "@type": "odrl:AssetCollection",
+                    "rdf:value": {
+                      "@id": "http://example.org/datasets/covid19Stats"
+                    }
+                  },
+                  "odrl:action": {
+                    "rdf:value": {
+                      "@id": "odrl:modify"
+                    }
+                  },
+                  "odrl:assignee": {
+                    "@type": "odrl:PartyCollection",
+                    "rdf:value": {
+                      "@id": "https://w3id.org/dpv/owl#AcademicScientificOrganisation"
+                    }
+                  }
+                }
+              },
+              "p_one_role": "requester",
+              "p_two_role": "provider"
+            }
+        }
+
+
+app = FastAPI(    root_path="/policy-engine-api")
+# Mount static files
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Set up templates directory
+templates = Jinja2Templates(directory="templates")
+
+# Define the namespaces
+ODRL = Namespace("http://www.w3.org/ns/odrl/2/")
+DPV = Namespace("https://w3id.org/dpv/dpv-owl#")
+RDFS = Namespace("http://www.w3.org/2000/01/rdf-schema#")
+
+# Load environment variables from .env file
+load_dotenv()
+
+MONGO_USER = os.getenv("MONGO_USER")
+MONGO_PASSWORD = os.getenv("MONGO_PASSWORD")
+MONGO_HOST = os.getenv("MONGO_HOST", "localhost")
+MONGO_PORT = os.getenv("MONGO_PORT")
+if MONGO_PORT:
+    MONGO_PORT = int(MONGO_PORT)
+    MONGO_URI = f"mongodb://{MONGO_USER}:{MONGO_PASSWORD}@{MONGO_HOST}:{MONGO_PORT}"
+else:
+    MONGO_URI = f"mongodb+srv://{MONGO_USER}:{MONGO_PASSWORD}@{MONGO_HOST}/?retryWrites=true&w=majority&appName=Cluster0"
+
+# Initialize MongoDB client
+client = AsyncIOMotorClient(MONGO_URI)
+
+db = client['policy_database']
+collection_data = db['data_policies']
+collection_script = db['script_policies']
+
+
+
+class ScriptPolicy(BaseModel):
+    odrl_policy: Dict = Field(
+        ...,
+        example=example_permission_policy
+    )
+
+
+class DataPolicy(BaseModel):
+    odrl_policy: Dict = Field(
+        ...,
+        example=example_prohibition_policy
+    )
+
+
+class RequestPolicy(BaseModel):
+    dataset_id: str = Field(
+        ...,
+        example="example_dataset_id"
+    )
+    script_id: str = Field(
+        ...,
+        example="example_script_id"
+    )
+
+
+class RequestPolicyData(BaseModel):
+    dataset_id: str = Field(
+        ...,
+        example="example_dataset_id"
+    )
+    requested_odrl_policy: Dict = Field(
+        ...,
+        example=example_prohibition_policy
+    )
+
+
+class ConflictReport(BaseModel):
+    conflict_details: Union[Dict, str] = Field(..., example="No conflicts")
+
+
+def get_properties_of_a_class(class_uri, ttl_file_path):
+    # Parse TTL content
+    g = Graph()
+    g.parse(str(ttl_file_path), format="ttl")
+    if "/" in class_uri:
+        class_uri = "<" + class_uri + ">"
+    properties_query = f"""
+        PREFIX dpv: <https://w3id.org/dpv/dpv-owl##>
+        PREFIX cc: <http://creativecommons.org/ns#>
+        PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
+        PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+        PREFIX owl: <http://www.w3.org/2002/07/owl#>
+
+        SELECT ?property ?label
+        WHERE {{
+          ?property rdf:type owl:DatatypeProperty ;
+                    rdfs:domain {class_uri} ;
+                    rdfs:label ?label .
+        }}
+    """
+    properties = [
+        {"uri": str(row.property), "label": str(row.label)}
+        for row in g.query(properties_query)
+    ]
+    return properties
+
+
+class RequestData(BaseModel):
+    uri: str
+
+
+
+# Add this as a new endpoint in your FastAPI app
+@app.post("/detect_conflict", response_model=ConflictResponse)
+async def detect_conflict(request: DetectConflictRequest = Body(...,example=DetectConflictRequest.Config.schema_extra["example"])):
+    """
+    Detects conflicts between two ODRL policies.
+
+    Takes two policies (p_one and p_two) and optionally their roles (p_one_role and p_two_role).
+    Returns a detailed conflict report if conflicts are found.
+
+    Parameters:
+    - request: DetectConflictRequest containing the two policies and optional role information
+
+    Returns:
+    - ConflictResponse: Detailed information about any conflicts found
+    """
+
+    j = compare_policies(policy_to_graph(request.p_one), policy_to_graph(request.p_two), request.p_one_role, request.p_two_role)
+    return JSONResponse(content=j, status_code=200)
+    raise HTTPException(status_code=500, detail=f"Not implemented")
+
+@app.post("/ontology/get-properties/")
+async def get_properties_from_properties_file(data: RequestData):
+    try:
+        # Assuming get_properties_of_a_class is a defined function that fetches the properties
+        fields = get_properties_of_a_class(data.uri, "./ontology/default_ontology/AdditionalProperties.ttl")
+        return JSONResponse(content={"fields": fields}, status_code=200)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/ontology/rules", response_model=List[Dict[str, str]])
+def get_rules():
+    try:
+        rules = get_rules_from_odrl("./ontology/default_ontology/ODRL22.rdf")
+        return rules
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/ontology/actors", response_model=List[Dict[str, str]])
+def get_actors():
+    try:
+        actors = get_actors_from_dpv("./ontology/default_ontology/dpv.rdf")
+        return actors
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/ontology/actions", response_model=List[Dict[str, str]])
+def get_actions():
+    try:
+        actions = get_actions_from_odrl("./ontology/default_ontology/ODRL22.rdf")
+        return actions
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/ontology/datasets", response_model=List[Dict[str, str]])
+def get_datasets():
+    try:
+        datasets = get_dataset_titles_and_uris("./ontology/default_ontology/Datasets.ttl")
+        return datasets
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/ontology/constraints", response_model=List[Dict[str, str]])
+def get_constraints():
+    try:
+        constraints = get_constraints_types_from_odrl("./ontology/default_ontology/ODRL22.rdf")
+        return constraints
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/ontology/purposes", response_model=List[Dict[str, str]])
+def get_purposes():
+    try:
+        purposes = get_purposes_from_dpv("./ontology/default_ontology/dpv.rdf")
+        return purposes
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/ontology/operators", response_model=List[Dict[str, str]])
+def get_operators():
+    try:
+        operators = get_operators_from_odrl("./ontology/default_ontology/ODRL22.rdf")
+        return operators
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+
+# @app.get("/", response_class=HTMLResponse)
+# async def read_root(request: Request):
+#     return templates.TemplateResponse("index.html", {"request": request})
+
+# Endpoint: /get_policy/{dataset_id}
+@app.get("/policy/get_data_provider_policy/{dataset_id}", response_model=DataPolicy)
+async def get_data_provider_policy(dataset_id: str):
+    """
+    Retrieves the ODRL policy for a specific dataset ID from the policies database.
+
+    Parameters:
+    - dataset_id: Path parameter specifying the ID of the dataset for which the policy needs to be retrieved.
+
+    Returns:
+    - Success (200 OK): Returns a JSON object containing the ODRL policy for the specified dataset_id: {"odrl_policy": policies[dataset_id]}
+
+    - Failure (404 Not Found): If the specified dataset_id is not found in the policies database.
+      Returns an HTTP 404 error with details: "Policy not found"
+
+    Example Usage:
+    ```
+    GET /get_policy/example_dataset HTTP/1.1
+    ```
+    Replace example_dataset with the actual dataset ID to retrieve its policy.
+    """
+    policy = await collection_data.find_one({"dataset_id": dataset_id})
+    if policy is None:
+        raise HTTPException(status_code=404, detail="Policy not found")
+    return {"odrl_policy": policy["odrl_policy"]}
+
+
+# Endpoint: /set_policy/{dataset_id}
+@app.post("/policy/set_data_provider_policy/{dataset_id}", status_code=201)
+async def set_data_provider_policy(dataset_id: str, policy: DataPolicy):
+    """
+    Sets or updates the ODRL policy for a specific dataset ID in the policies database.
+
+    Parameters:
+    - dataset_id: Path parameter specifying the ID of the dataset for which the policy is to be set.
+    - policy: Request body containing the new ODRL policy to be set for the dataset.
+
+    Returns:
+    - Success (201 Created): Returns a JSON object with a success message indicating the policy was set successfully: {"message": "Policy set successfully"}
+
+    Example Usage:
+    ```
+    POST /set_policy/example_dataset HTTP/1.1
+    Content-Type: application/json
+
+    {
+      "odrl_policy": {...}
+    }
+    ```
+    Replace example_dataset with the actual dataset ID and provide the appropriate odrl_policy details in the request body.
+    """
+
+    await collection_data.update_one(
+        {"dataset_id": dataset_id},
+        {"$set": {"odrl_policy": policy.odrl_policy}},
+        upsert=True
+    )
+    return {"message": "Policy set successfully"}
+
+
+# Endpoint: /remove_policy/{dataset_id}
+@app.delete("/policy/remove_data_provider_policy/{dataset_id}")
+async def remove_data_provider_policy(dataset_id: str):
+    """
+    Removes the ODRL policy for a specific dataset ID from the policies database.
+
+    Parameters:
+    - dataset_id: Path parameter specifying the ID of the dataset for which the policy is to be removed.
+
+    Returns:
+    - Success (200 OK): Returns a JSON object with a success message indicating the policy was removed successfully: {"message": "Policy removed successfully"}
+
+    - Failure (404 Not Found): If the specified dataset_id is not found in the policies database.
+      Returns an HTTP 404 error with details: "Policy not found"
+
+    Example Usage:
+    ```
+    DELETE /remove_policy/example_dataset HTTP/1.1
+    ```
+    Replace example_dataset with the actual dataset ID to remove its policy.
+    """
+    result = await collection_data.delete_one({"dataset_id": dataset_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Policy not found")
+    return {"message": "Policy removed successfully"}
+
+
+@app.get("/policy/get_data_consumer_policy/{script_id}", response_model=ScriptPolicy)
+async def get_data_consumer_policy(script_id: str):
+    """
+    Retrieves the ODRL policy for a specific script ID from the policies database.
+
+    Parameters:
+    - script_id: Path parameter specifying the ID of the script for which the policy needs to be retrieved.
+
+    Returns:
+    - Success (200 OK): Returns a JSON object containing the ODRL policy for the specified script_id: {"odrl_policy": policies[script_id]}
+
+    - Failure (404 Not Found): If the specified script_id is not found in the policies database.
+      Returns an HTTP 404 error with details: "Policy not found"
+
+    Example Usage:
+    ```
+    GET /get_policy/example_script HTTP/1.1
+    ```
+    Replace example_script with the actual script ID to retrieve its policy.
+    """
+    policy = await collection_script.find_one({"script_id": script_id})
+    if policy is None:
+        raise HTTPException(status_code=404, detail="Policy not found")
+    return {"odrl_policy": policy["odrl_policy"]}
+
+
+@app.post("/policy/set_data_consumer_policy/{script_id}", status_code=201)
+async def set_data_consumer_policy(script_id: str, policy: ScriptPolicy):
+    """
+    Sets or updates the ODRL policy for a specific script ID in the policies database.
+
+    Parameters:
+    - script_id: Path parameter specifying the ID of the script for which the policy is to be set.
+    - policy: Request body containing the new ODRL policy to be set for the script.
+
+    Returns:
+    - Success (201 Created): Returns a JSON object with a success message indicating the policy was set successfully: {"message": "Policy set successfully"}
+
+    Example Usage:
+    ```
+    POST /set_policy/example_script HTTP/1.1
+    Content-Type: application/json
+
+    {
+      "odrl_policy": {...}
+    }
+    ```
+    Replace example_script with the actual script ID and provide the appropriate odrl_policy details in the request body.
+    """
+    await collection_script.update_one(
+        {"script_id": script_id},
+        {"$set": {"odrl_policy": policy.odrl_policy}},
+        upsert=True
+    )
+    return {"message": "Policy set successfully"}
+
+
+@app.delete("/policy/remove_data_consumer_policy/{script_id}")
+async def remove_data_consumer_policy(script_id: str):
+    """
+    Removes the ODRL policy for a specific script ID from the policies database.
+
+    Parameters:
+    - script_id: Path parameter specifying the ID of the script for which the policy is to be removed.
+
+    Returns:
+    - Success (200 OK): Returns a JSON object with a success message indicating the policy was removed successfully: {"message": "Policy removed successfully"}
+
+    - Failure (404 Not Found): If the specified script_id is not found in the policies database.
+      Returns an HTTP 404 error with details: "Policy not found"
+
+    Example Usage:
+    ```
+    DELETE /remove_policy/example_script HTTP/1.1
+    ```
+    Replace example_script with the actual script ID to remove its policy.
+    """
+    result = await collection_script.delete_one({"script_id": script_id})
+    if result["deleted_count"] == 0:
+        raise HTTPException(status_code=404, detail="Policy not found")
+    return {"message": "Policy removed successfully"}
+
+
+@app.post("/policy/check_conflict", response_model=ConflictReport)
+async def check_conflict(request_policy_data: RequestPolicyData):
+    """
+    Checks for conflicts between the provided policy and existing policies.
+
+    Parameters:
+    - data_policy: Request body containing the ODRL policy to check for conflicts.
+
+    Returns:
+    - ConflictReport: Details of any conflicts found, or a message indicating no conflicts.
+    """
+    # Replace with your logic to retrieve existing policies
+    existing_policy_data = await collection_data.find_one({"dataset_id": request_policy_data.dataset_id})
+
+    if existing_policy_data is None:
+        raise HTTPException(status_code=404, detail="Existing policy not found")
+
+    existing_policy_graph = policy_to_graph(existing_policy_data["odrl_policy"])
+    request_policy_graph = policy_to_graph(request_policy_data.odrl_policy)
+
+    conflict = check_policy_conflict(existing_policy_graph, request_policy_graph)
+
+    if conflict:
+        raise HTTPException(status_code=409, detail="Policy conflict detected")
+    return ConflictReport(conflict_details="No conflicts detected")
+
+
+@app.post("/policy/compare_policies", response_model=ConflictReport)
+async def compare_policies_endpoint(request_policy: RequestPolicy):
+    """
+    Validates a policy of a script against existing policies for a dataset using ODRL (Open Digital Rights Language).
+
+    Parameters:
+    - request_policy: Request body containing the existing dataset_id and script_id
+    to validate a script data access request policy against a data provider access policy.
+
+    Returns:
+    - Success (200 OK): Access granted if no conflicts are found between the request policy and existing dataset policies.
+      Returns a JSON object with a success message: {"message": "Access granted"}
+
+    - Failure (404 Not Found): If the specified dataset_id is not found in the policies database.
+      Returns an HTTP 404 error with details: "Policy not found"
+
+    - Conflict (200 OK with ConflictReport): If the request policy conflicts with an existing policy for the dataset.
+      Returns a JSON object with conflict details: {"conflict_details": "Request policy conflicts with existing policy"}
+    """
+    policy_data = await collection_data.find_one({"dataset_id": request_policy.dataset_id})
+    policy_script = await collection_script.find_one({"script_id": request_policy.script_id})
+    if policy_data is None:
+        raise HTTPException(status_code=404, detail="Data policy not found")
+    if policy_script is None:
+        raise HTTPException(status_code=404, detail="Script policy not found")
+
+    existing_policy_graph = policy_to_graph(policy_data["odrl_policy"])
+    request_policy_graph = policy_to_graph(policy_script["odrl_policy"])
+
+    conflict = check_policy_conflict(existing_policy_graph, request_policy_graph)
+    print(conflict)
+    # matching_nodes = find_matching_nodes(existing_policy_graph, request_policy_graph)
+    # print(matching_nodes)
+    if bool(conflict):
+        raise HTTPException(status_code=409, detail=conflict)
+        return ConflictReport(conflict_details=conflict)
+    return ConflictReport(conflict_details="No conflicts")
+
+
+def policy_to_graph(policy: Dict) -> Graph:
+    graph = Graph()
+    graph.parse(data=json.dumps(policy), format="json-ld")
+    return graph
+
+
+def find_matching_nodes(existing_policy: Graph, request_policy: Graph) -> bool:
+    """
+    Find matching nodes between existing and request policies using SPARQL.
+
+    Parameters:
+    - existing_policy: RDF graph representing the existing policy (prohibition).
+    - request_policy: RDF graph representing the request policy (permission).
+
+    Returns:
+    - Boolean indicating if there are matching nodes between the two policies.
+    """
+
+    # Prepare the SPARQL query
+    query = prepareQuery(sparql_query, initNs={"odrl": ODRL, "dpv": DPV, "rdfs": RDFS})
+
+    # Execute the query on the existing and request policies
+    existing_results = set(existing_policy.query(query))
+    request_results = set(request_policy.query(query))
+
+    # Extract non-BNode parts of the results for comparison
+    def extract_non_bnode_parts(rdf_set):
+        return {node for node in rdf_set if not isinstance(node, rdflib.term.BNode)}
+
+    # Extract non-blank nodes
+    existing_non_blank_nodes = extract_non_bnode_parts(existing_results)
+    request_non_blank_nodes = extract_non_bnode_parts(request_results)
+
+    existing_non_bnode_parts = extract_non_bnode_parts(existing_results)
+    request_non_bnode_parts = extract_non_bnode_parts(request_results)
+    # Find matching nodes
+    matching_nodes = existing_non_blank_nodes.intersection(request_non_blank_nodes)
+    # Debug output
+    print("Existing Results (non-BNode parts):", existing_non_bnode_parts)
+    print("Request Results (non-BNode parts):", request_non_bnode_parts)
+    print("Matching Nodes:", matching_nodes)
+
+    # Return whether there are any matching nodes
+    if bool(matching_nodes):
+        conflicts = []
+        for matching_node in matching_nodes:
+            conflicts.append({
+                'action': matching_node[0],
+                'assignee': matching_node[1],
+                'target_source': matching_node[2],
+                'purpose': matching_node[3]
+            })
+        return {"conflicts": matching_nodes}
+    else:
+        return
+
+
+def check_policy_conflict(existing_policy: Graph, request_policy: Graph) -> Union[None, str]:
+    """
+    Checks for conflicts between existing and request policies using SPARQL.
+
+    Parameters:
+    - existing_policy: RDF graph representing the existing policy (prohibition).
+    - request_policy: RDF graph representing the request policy (permission).
+
+    Returns:
+    - Conflict message if conflicts are found, None otherwise.
+    """
+    # Define the SPARQL query
+    sparql_query = """
+        PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
+        PREFIX dpv: <https://w3id.org/dpv/dpv-owl#>
+        PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+        SELECT ?policy ?conflictingPolicy
+            WHERE {
+                ?policy a odrl:Policy ;
+                        odrl:permission ?permission .
+                ?permission odrl:action ?action ;
+                            odrl:target ?target ;
+                            odrl:constraint ?constraint ;
+                            odrl:assignee ?assignee.
+
+                ?conflictingPolicy a odrl:Policy ;
+                                   odrl:prohibition ?prohibition .
+
+                ?prohibition odrl:action ?prohibitionAction ;
+                             odrl:target ?prohibitionTarget ;
+                             odrl:constraint ?prohibitionConstraint ;
+                             odrl:assignee ?prohibitionAssignee .
+
+                # Hierarchical reasoning for action (including transitive subclasses)
+                ?action (rdfs:subClassOf*|^rdfs:subClassOf*) ?prohibitionAction .
+                # Hierarchical reasoning for action (including transitive subclasses)
+                ?assignee (rdfs:subClassOf*|^rdfs:subClassOf*) ?prohibitionAssignee .
+                # Hierarchical reasoning for target (including transitive subclasses)
+                ?target (rdfs:subClassOf*|^rdfs:subClassOf*) ?prohibitionTarget .
+
+                OPTIONAL {
+                    ?constraint odrl:leftOperand ?constraintLeftOperand ;
+                                odrl:operator ?constraintOperator ;
+                                odrl:rightOperand ?constraintRightOperand .
+                    ?prohibitionConstraint odrl:leftOperand ?prohibitionLeftOperand ;
+                                           odrl:operator ?prohibitionOperator ;
+                                           odrl:rightOperand ?prohibitionRightOperand .
+
+                    # Hierarchical reasoning for constraints (including transitive subclasses)
+                    ?constraintLeftOperand (rdfs:subClassOf*|^rdfs:subClassOf*) ?prohibitionLeftOperand .
+                    ?constraintOperator (rdfs:subClassOf*|^rdfs:subClassOf*) ?prohibitionOperator .
+                    ?constraintRightOperand (rdfs:subClassOf*|^rdfs:subClassOf*) ?prohibitionRightOperand .
+                }
+
+                FILTER (!BOUND(?constraint) || (!BOUND(?constraintLeftOperand) && !BOUND(?prohibitionLeftOperand)) ||
+                        (?constraintLeftOperand = ?prohibitionLeftOperand &&
+                         ?constraintOperator = ?prohibitionOperator &&
+                         ?constraintRightOperand = ?prohibitionRightOperand))
+            }
+
+    """
+
+    sparql_query = """
+        PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
+        PREFIX dpv: <https://w3id.org/dpv/dpv-owl#>
+        PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+        SELECT DISTINCT *
+            WHERE {
+                ?policy a odrl:Policy ;
+                        odrl:permission ?permission .
+                ?permission odrl:action ?action ;
+                            odrl:target ?target ;
+                            odrl:constraint ?constraint ;
+                            odrl:assignee ?assignee.
+                ?constraint odrl:leftOperand odrl:purpose ;
+                            odrl:operator odrl:eq ;
+                            odrl:rightOperand ?purpose .
+
+                ?conflictingPolicy a odrl:Policy ;
+                                   odrl:prohibition ?prohibition .
+
+                ?prohibition odrl:action ?prohibitionAction ;
+                             odrl:target ?prohibitionTarget ;
+                             odrl:constraint ?prohibitionConstraint ;
+                             odrl:assignee ?prohibitionAssignee .
+
+                ?prohibitionConstraint odrl:leftOperand odrl:purpose ;
+                            odrl:operator odrl:eq ;
+                            odrl:rightOperand ?prohibitionPurpose .
+
+                # Hierarchical reasoning for action (including transitive subclasses)
+                ?action (rdfs:subClassOf*|^rdfs:subClassOf*) ?prohibitionAction .
+                # Hierarchical reasoning for action (including transitive subclasses)
+                ?assignee (rdfs:subClassOf*|^rdfs:subClassOf*) ?prohibitionAssignee .
+                # Hierarchical reasoning for action (including transitive subclasses)
+                ?purpose (rdfs:subClassOf*|^rdfs:subClassOf*) ?prohibitionPurpose .
+                # Hierarchical reasoning for action (including transitive subclasses)
+                ?target (rdfs:subClassOf*|^rdfs:subClassOf*) ?prohibitionTarget .
+            }
+    """
+
+    # Prepare the SPARQL query
+    query = prepareQuery(sparql_query, initNs={"odrl": ODRL, "dpv": DPV, "rdfs": RDFS})
+    # Merge the two graphs
+
+    dpv_graph = Graph()
+    dpv_graph.parse("https://w3id.org/dpv/dpv-owl", format="xml")  # Or TTL if available
+
+    odrl_graph = Graph()
+    odrl_graph.parse("http://www.w3.org/ns/odrl/2/ODRL22.ttl", format="turtle")
+
+    merged_policy = existing_policy + request_policy
+    merged_policy += dpv_graph
+    merged_policy += odrl_graph
+    # Execute the query on the merged policy
+    results = merged_policy.query(query)
+
+    # results = merged_policy.query("select * where {?s ?p ?o}")
+
+    # Execute the query on the existing and request policies
+    # results = existing_policy.query(query)
+
+    # Process results to determine conflicts
+    for row in results:
+        # print(row)
+        # print(row.purpose, row.prohibitionPurpose)
+        # print(row.action, row.prohibitionAction)
+        # print(row.target, row.prohibitionTarget)
+        # print(row.assignee, row.prohibitionAssignee)
+        # print(f"Conflict detected between policy {row.policy} and conflicting policy {row.conflictingPolicy}")
+        return f"Conflict detected between consumer policy {row.policy} and provider policy {row.conflictingPolicy}"
+
+    # import csv
+    #
+    # # Assuming 'results.bindings' is a list of dictionaries
+    # with open('output.csv', mode='w', newline='', encoding='utf-8') as file:
+    #     writer = csv.writer(file)
+    #
+    #     # Write the rows
+    #     for row in results.bindings:
+    #         writer.writerow([row['s'],row['p'],row['o']])
+
+    return None
+
+
+def convert_to_rdf(policy: Dict) -> Graph:
+    """
+    Converts the given policy dictionary to an RDF graph.
+    """
+    g = Graph()
+    g.parse(data=policy, format="json-ld")
+    return g
+
+
+# Mount static files
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Set up Jinja2 templates
+templates = Jinja2Templates(directory="templates")
+
+
+@app.get("/")
+async def home(request: Request):
+    return {"message": "For ODRL Policy Enforcement API, visit [URL]/docs"}
+
+
+@app.post("/policy/convert_to_odrl")
+async def convert_to_odrl(data: List[ODRLData] = Body(
+        ...,
+        example=example_data)):
+    try:
+        # Initialize translator and parse the incoming request data
+        translator = LogicTranslator()
+        response = [item.dict() for item in data]
+        filtered_response = filter_dicts_with_none_values(response)
+        odrl = data_helper.convert_list_to_odrl_jsonld_no_user(filtered_response)
+
+        try:
+            odrl_parser = ODRLParser()
+            policies = odrl_parser.parse_list([odrl])
+            logic = translator.translate_policy(policies)
+            return {"odrl": odrl, "formal_logic": logic, "data": filtered_response}
+        except BaseException as b:
+            return {"odrl": odrl}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+def has_none_value_on_first_level(d):
+    """ Check if dictionary d has at least one None value on the first level """
+    return any((value is None) or (value == '' and key == "value") for key, value in d.items())
+
+
+def filter_dicts_with_none_values(data):
+    """
+    Recursively filter out dictionaries from data that have at least one None value on the first level.
+    Handles nested lists and dictionaries.
+    """
+    if isinstance(data, list):
+        filtered_list = []
+        for item in data:
+            if isinstance(item, dict):
+                if not has_none_value_on_first_level(item):
+                    filtered_list.append(filter_dicts_with_none_values(item))
+            elif isinstance(item, list):
+                filtered_list.append(filter_dicts_with_none_values(item))
+            else:
+                filtered_list.append(item)
+        return filtered_list
+    elif isinstance(data, dict):
+        filtered_dict = {}
+        for key, value in data.items():
+            if isinstance(value, dict):
+                if not has_none_value_on_first_level(value):
+                    filtered_dict[key] = filter_dicts_with_none_values(value)
+            elif isinstance(value, list):
+                filtered_dict[key] = filter_dicts_with_none_values(value)
+            else:
+                filtered_dict[key] = value
+        return filtered_dict
+    else:
+        return data
+
+
+if __name__ == '__main__':
+    uvicorn.run(
+        "api:app",
+        host="0.0.0.0",
+        port=8080,
+        reload=True,
+        # ssl_keyfile="./certs/key.pem",
+        # ssl_certfile="./certs/cert.pem"
+    )
+#    uvicorn.run("api:app", host="0.0.0.0", port=8080, reload=True)
