@@ -33,7 +33,7 @@ Python, rdflib, pyshacl, pandas
 
 ### Detailed Steps
 
-Currently the Policy Engine can be inported as a Python library to use its main functions.
+Currently the Policy Engine can be inported as a Python library to use its main functions. The code for the core functions of the Policy Engine can be found in the `PolicyEngineLibrary` subfolder.
 
 
 
