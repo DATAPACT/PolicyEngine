@@ -41,7 +41,7 @@ Currently the Policy Engine can be inported as a Python library to use its main 
 
 | What | How | Values |
 | --- | --- | --- |
-| 1) Support Policy Comparison 2) Support different policy evaluation semantics (see paper) and complex language features (such as obligations, duties, remedies, consequence) 3) Data Usage Policy Evaluation Scalability 4) Policy Comparison Scalability | 1) fully fledged comparison of policies, supporting all common ODRL features (85% of features, see KPI for policy editor) 2) experiments comparing different semantics and features  3) and 4) experiments with synthetic data: policies and states of the world | 1) at least two semantics and two complex features 2) support of ODRL 2.2 (ODRL Lite and Full ODRL) and main semantics from Jaime et al. Evaluation and Comparison Semantics for ODRL, 2025  3) and 4) support >20  policies of average size (>5 rules per policy), evaluated over states of the world from different users   |
+| 1) Support Policy Comparison 2) Support different policy evaluation semantics (see paper) and complex language features (such as obligations, duties, remedies, consequence) | 1) fully fledged comparison of policies, supporting all common ODRL features (85% of features, see KPI for policy editor) 2) experiments comparing different semantics and features  | 1) at least two semantics and two complex features 2) support of ODRL 2.2 (ODRL Lite and Full ODRL) and main semantics from Jaime et al. Evaluation and Comparison Semantics for ODRL, 2025   |
 
 Progress towards KPIs:
-* 04/03/2026: 1) Implemented "refinements" and "constraints" on policy comparison engine 2) the engine currently supports ODRL lite semantics with permissions and prohibitions 3) and 4) we developed synthetic policy and state of the world generation capability
+* 04/03/2026: 1) Implemented "refinements" and "constraints" on policy comparison engine 2) the engine currently supports ODRL lite semantics with permissions and prohibitions
